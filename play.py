@@ -7,10 +7,7 @@ class Simulation:
         self.n = n
 
     def __call__(self):
-        res = 0
-        for i in range(self.n):
-            res += math.sin(i * self.n)
-        return res / self.n
+        return self.n
 
-for res in run_parallel([Simulation(1000000+i) for i in range(100)]):
+for res in run_parallel([Simulation(i) for i in range(100)]):
     print(res)

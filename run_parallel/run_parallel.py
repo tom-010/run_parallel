@@ -45,18 +45,20 @@ def run_parallel(*args):
 
 def _run_in_parallel(fns, cores):
     for chunk in _partition(fns, cores):
-        queue = multiprocessing.Queue()
+        manager = multiprocessing.Manager()
+        output = manager.dict()
         processes = []
-        for fn in chunk:
-            process = multiprocessing.Process(target=_worker, args=(fn, queue))
+        for idx, fn in enumerate(chunk):
+            process = multiprocessing.Process(target=_worker, args=(fn, idx, output))
             process.start()
             processes.append(process)
         for process in processes:
             process.join()
-            yield queue.get()
+        for i in range(len(chunk)):
+            yield output[i]
 
-def _worker(job, queue):
-    queue.put(job())
+def _worker(job, idx, output):
+    output[idx] = job()
 
 def _partition(l, size):
     for i in range(0, len(l), size):
