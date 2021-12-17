@@ -6,6 +6,7 @@ class TestRunParallel(TestCase):
     def test_pass_empty_list(self):
         self.assertEqual([], run_parallel([]))
 
+    
     def test_callable_classes(self):
         self.assertEqual([1, 2], run_parallel([
             self.CallableClass(1),
@@ -15,10 +16,6 @@ class TestRunParallel(TestCase):
     def test_pass_generator(self):
         generator = map(self.CallableClass, [1,2])
         self.assertEqual([1, 2], run_parallel(generator))
-
-    def test_invalid_input(self):
-        for invalid_input in [None, 0, 1.1, 1, set, [], {}]:
-            self.assertEqual([], run_parallel(invalid_input), invalid_input)
 
     def test_partially_invalid_input(self):
         # the idea: everything is a function, but if it is not callable
@@ -35,6 +32,58 @@ class TestRunParallel(TestCase):
     def test_wired_but_valid_input(self):
         for wired_input, expected in [(set, set())]:
             self.assertEqual([expected], run_parallel([wired_input]), wired_input)
+
+    def test_easy_interface(self):
+        self.assertEqual([1, 2], run_parallel(
+            self.CallableClass(1),
+            self.CallableClass(2)
+        ))
+
+    def test_passing_no_args(self):
+        self.assertEqual([], run_parallel())
+    
+    def test_passing_multiple_iterables(self):
+        self.assertEqual([1, 2, 3, 4], run_parallel([
+            self.CallableClass(1),
+            self.CallableClass(2)
+        ], [
+            self.CallableClass(3),
+            self.CallableClass(4)
+        ]))
+
+    def test_some_passed_iterables_are_none(self):
+        self.assertEqual([1, 2, None, 1, set(), 3, 4], run_parallel([
+            self.CallableClass(1),
+            self.CallableClass(2)
+        ],
+        None, 
+        1,
+        set, 
+        [
+            self.CallableClass(3),
+            self.CallableClass(4)
+        ]))
+
+    def test_passing_multiple_iterables_contain_invalid_inputs(self):
+        self.assertEqual([1, 1, 3, None], run_parallel([
+            self.CallableClass(1),
+            1
+        ], [
+            self.CallableClass(3),
+            None
+        ]))
+
+    def test_single_callable(self):
+        self.assertEqual(1, run_parallel(self.CallableClass(1)))
+
+    def test_single_callable_is_invalid_input(self):
+        for invalid_input in [1, 1.1, None]:
+            self.assertEqual(invalid_input, run_parallel(invalid_input))
+
+    def test_single_callable_as_list(self):
+        self.assertEqual([1], run_parallel([
+            self.CallableClass(1)
+        ]))
 
     class CallableClass:
         def __init__(self, res):
