@@ -1,11 +1,11 @@
 
 import multiprocessing
 import itertools
- 
+from itertools import islice
 
  
 
-def run_parallel(*args):
+def run_parallel(*args, cores=None):
     """
     Takes a list of callables and runs them as fast as possible
     on the system CPU.
@@ -40,7 +40,9 @@ def run_parallel(*args):
     if not is_iterable(callables):
         return []
 
-    return _run_in_parallel(callables, multiprocessing.cpu_count())
+    if not cores:
+        cores = multiprocessing.cpu_count()
+    return _run_in_parallel(callables, cores)
 
 
 def _run_in_parallel(fns, cores):
@@ -58,11 +60,15 @@ def _run_in_parallel(fns, cores):
             yield output[i]
 
 def _worker(job, idx, output):
-    output[idx] = job()
+    if callable(job):
+        output[idx] = job()
+    else:
+        output[idx] = job
 
-def _partition(l, size):
-    for i in range(0, len(l), size):
-        yield list(itertools.islice(l, i, i + size))
+
+def _partition(iterable, n):
+    it = iter(iterable)
+    return iter(lambda: tuple(islice(it, n)), ())
 
 # for ret in _run_in_parallel([lambda: 1, lambda: 2, lambda: 3], 2):
 #     print(ret)
@@ -77,8 +83,6 @@ def _collapse_args(args):
             callables.append(arg)
     return callables
 
-def _fn_for_map(fn):
-    return fn() if callable(fn) else fn
 
 def is_iterable(obj):
     """
