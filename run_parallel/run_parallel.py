@@ -1,5 +1,9 @@
 
 import multiprocessing
+import itertools
+ 
+
+ 
 
 def run_parallel(*args):
     """
@@ -36,9 +40,30 @@ def run_parallel(*args):
     if not is_iterable(callables):
         return []
 
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-    res = pool.map(_fn_for_map, callables)
-    return res
+    return _run_in_parallel(callables, multiprocessing.cpu_count())
+
+
+def _run_in_parallel(fns, cores):
+    for chunk in _partition(fns, cores):
+        queue = multiprocessing.Queue()
+        processes = []
+        for fn in chunk:
+            process = multiprocessing.Process(target=_worker, args=(fn, queue))
+            process.start()
+            processes.append(process)
+        for process in processes:
+            process.join()
+            yield queue.get()
+
+def _worker(job, queue):
+    queue.put(job())
+
+def _partition(l, size):
+    for i in range(0, len(l), size):
+        yield list(itertools.islice(l, i, i + size))
+
+# for ret in _run_in_parallel([lambda: 1, lambda: 2, lambda: 3], 2):
+#     print(ret)
 
 def _collapse_args(args):
     callables = []
