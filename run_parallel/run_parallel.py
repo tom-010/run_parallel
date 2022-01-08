@@ -1,8 +1,5 @@
 
 import multiprocessing
-import itertools
-from itertools import islice
-from queue import Queue
  
 
 def run_parallel(*args, cores=None):
@@ -44,33 +41,6 @@ def run_parallel(*args, cores=None):
         cores = multiprocessing.cpu_count()
     return _run_in_parallel(callables, cores)
 
-
-class Worker:
-
-    def __init__(self, job_queue, result_queue):
-        self.job_queue = job_queue
-        self.result_queue = result_queue
-        self.processes = []
-
-    def work(self):
-        processes = []
-        while True:
-            try:
-                job_number, job = self.job_queue.get_nowait()
-            except Exception:
-                return # done
-            
-            process = multiprocessing.Process(target=_queue_worker, args=(job, job_number, self.result_queue))
-            process.daemon = True
-            process.start()
-            self.processes.append(process)
-
-    def join(self):
-        for process in self.processes:
-            process.join()
-
-
-
 def _run_in_parallel(fns, cores):
    with multiprocessing.Pool(cores) as pool:
         results = [pool.apply_async(_worker, (fn,)) for fn in fns]
@@ -82,22 +52,7 @@ def _worker(job):
         return job()
     else:
         return job
-
-
-def _queue_worker(job, job_number, output):
-    if callable(job):
-        output.put((job_number, job()))
-    else:
-        output.put((job_number, job))
-
-
-def _partition(iterable, n):
-    it = iter(iterable)
-    return iter(lambda: tuple(islice(it, n)), ())
-
-# for ret in _run_in_parallel([lambda: 1, lambda: 2, lambda: 3], 2):
-#     print(ret)
-
+        
 def _collapse_args(args):
     callables = []
     for arg in args:
