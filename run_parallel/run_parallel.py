@@ -2,7 +2,7 @@
 import multiprocessing
 import itertools
 from itertools import islice
-
+from queue import Queue
  
 
 def run_parallel(*args, cores=None):
@@ -45,25 +45,50 @@ def run_parallel(*args, cores=None):
     return _run_in_parallel(callables, cores)
 
 
-def _run_in_parallel(fns, cores):
-    for chunk in _partition(fns, cores):
-        manager = multiprocessing.Manager()
-        output = manager.dict()
-        processes = []
-        for idx, fn in enumerate(chunk):
-            process = multiprocessing.Process(target=_worker, args=(fn, idx, output))
-            process.start()
-            processes.append(process)
-        for process in processes:
-            process.join()
-        for i in range(len(chunk)):
-            yield output[i]
+class Worker:
 
-def _worker(job, idx, output):
+    def __init__(self, job_queue, result_queue):
+        self.job_queue = job_queue
+        self.result_queue = result_queue
+        self.processes = []
+
+    def work(self):
+        processes = []
+        while True:
+            try:
+                job_number, job = self.job_queue.get_nowait()
+            except Exception:
+                return # done
+            
+            process = multiprocessing.Process(target=_queue_worker, args=(job, job_number, self.result_queue))
+            process.daemon = True
+            process.start()
+            self.processes.append(process)
+
+    def join(self):
+        for process in self.processes:
+            process.join()
+
+
+
+def _run_in_parallel(fns, cores):
+   with multiprocessing.Pool(cores) as pool:
+        results = [pool.apply_async(_worker, (fn,)) for fn in fns]
+        for res in results:
+            yield res.get()
+
+def _worker(job):
     if callable(job):
-        output[idx] = job()
+        return job()
     else:
-        output[idx] = job
+        return job
+
+
+def _queue_worker(job, job_number, output):
+    if callable(job):
+        output.put((job_number, job()))
+    else:
+        output.put((job_number, job))
 
 
 def _partition(iterable, n):

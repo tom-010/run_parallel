@@ -9,7 +9,7 @@ README = (HERE / "README.md").read_text()
 setup(
     name='run_parallel',
     url='https://github.com/tom-010/run_parallel',
-    version='0.0.4',
+    version='0.0.5',
     author='Thomas Deniffel',
     author_email='tdeniffel@gmail.com',
     packages=['run_parallel'], # find_packages(),

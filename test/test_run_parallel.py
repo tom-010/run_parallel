@@ -1,5 +1,7 @@
 from unittest import TestCase
-from run_parallel.run_parallel import run_parallel, is_iterable
+from run_parallel.run_parallel import run_parallel, is_iterable, _run_in_parallel
+import time 
+
 
 class TestRunParallel(TestCase):
     
@@ -132,3 +134,33 @@ class TestIsIterable(TestCase):
 
     class BlankClass:
         pass
+
+class SleepingJob:
+
+    def __init__(self, seconds):
+        self.seconds = seconds
+
+    def __call__(self):
+        time.sleep(self.seconds)
+        return time.time() # report back the wakeup time
+
+
+class TestDoNotStartInBatches(TestCase):
+
+    def test_one_long_running_job(self):
+        jobs = [
+            SleepingJob(1),
+            SleepingJob(0.1),
+            SleepingJob(0.1),
+            SleepingJob(0.1),
+            SleepingJob(0.1),
+        ]
+        res = list(run_parallel(jobs, cores=2))
+        
+        first_job_end_time = res[0]
+        
+        # every job except the first should have been finished befoe
+        # the first job
+        for idx, other_job in enumerate(res[1:]):
+            offset = other_job - first_job_end_time
+            self.assertTrue(other_job < first_job_end_time, f'The job {idx} should have been completed BEFORE the first job. But it completed {offset*1000} milliseconds later')
